@@ -133,7 +133,8 @@ class Resources extends \lithium\core\StaticObject {
 				throw new ClassNotFoundException("Could not find resource-mapped model class.");
 			}
 			$query  = $options['find'];
-			$method = array_shift($query);
+			$method = $query[0];
+			unset($query[0]);
 			$result = $model::$method($query);
 
 			if (!$result && $options['required']) {
