@@ -68,107 +68,141 @@ class Resources extends \lithium\core\StaticObject {
 	public static function map(array $config, array $params) {
 		return static::_filter(__FUNCTION__, compact('config', 'params'), function($self, $params) {
 			$config = $params['config'];
-			$params = $params['params'];
+			$request = $params['params'];
 			$defaults = array(
-				null, 'find' => array(), 'required' => true, 'params' => array(), 'in' => null
+				null,
+				'find' => array('first'),
+				'required' => true,
+				'params' => array(),
+				'in' => null
 			);
 
-			if (!isset($config[$params['action']])) {
+			if (!isset($config[$request['action']])) {
 				return array();
 			}
-			$config = (array) $config[$params['action']];
+			$config = (array) $config[$request['action']];
 			$result = array();
 
-			foreach ($config as $name => $param) {
-				$args = array($params, $param, $defaults);
-				list($model, $param, $required, $values) = $self::invokeMethod('_defaults', $args);
+			foreach ($config as $name => $resource) {
+				$args = array($name, $request, $resource, $defaults);
+				list($model, $resource, $conditions) = $self::invokeMethod('_defaults', $args);
 
-				if (!$values && $param['params']) {
+				if (!$conditions && $resource['params']) {
 					$result[$name] = null;
 					continue;
 				}
-				if ($param['in']) {
+				if ($resource['in']) {
 					$result[$name] = $self::invokeMethod('_queryCollection', array(
-						isset($result[$param['in']]) ? $result[$param['in']] : null, $param
+						$result, $name, $resource, $conditions
 					));
 					continue;
 				}
 				$result[$name] = $self::get(compact('name', 'model') + array(
-					'required' => $param['required'],
-					'find' => Set::merge($param['find'], array('conditions' => $values))
+					'required' => $resource['required'],
+					'find' => Set::merge($resource['find'], compact('conditions'))
 				));
 			}
 			return array_values($result);
 		});
 	}
 
-	protected static function _queryCollection($data, array $options) {
-		if (!$data && $options['required']) {
-			throw new DispatchException("Resource not found."); // Maybe Bad Request?
+	protected static function _queryCollection($data, $name, array $resource, array $conditions) {
+		$defaults = array(
+			'model' => null,
+			'find' => array('first'),
+			'required' => false
+		);
+		$resource += $defaults;
+		$resource['find'] += $defaults['find'];
+		list($parent, $field) = explode('.', $resource['in'], 2);
+
+		if (!isset($data[$parent]) || !isset($data[$parent]->{$field})) {
+			if ($resource['required']) {
+				// Maybe Bad Request?
+				$message = "Resource `{$name}` not found in parent `{$parent}`.";
+				throw new DispatchException($message);
+			}
+			return;
 		}
-		if (isset($options['query']['conditions'])) {
-			$method = ($options['method'] == 'first') ? 'first' : 'find';
-			$data = $data->{$method}($options['query']['conditions']);
+		$result = $data[$parent]->{$field};
+
+		if ($conditions) {
+			$method = ($resource['find'][0] == 'first') ? 'first' : 'find';
+			$result = $result->{$method}($conditions);
 		}
-		if (isset($options['query']['order'])) {
-			$data->sort($options['query']['order']);
+		if ($result && isset($resource['find']['order'])) {
+			$result->sort($resource['find']['order']);
 		}
-		return $data;
+		return $result;
 	}
 
-	public static function get(array $options) {
+	public static function get(array $resource) {
 		$defaults = array(
 			'name' => null,
 			'model' => null,
 			'find' => array('first'),
 			'required' => false
 		);
-		$options += $defaults;
-		$options['find'] += $defaults['find'];
+		$resource += $defaults;
+		$resource['find'] += $defaults['find'];
 
-		return static::_filter(__FUNCTION__, compact('options'), function($self, $params) {
-			$options = $params['options'];
+		return static::_filter(__FUNCTION__, compact('resource'), function($self, $params) {
+			$resource = $params['resource'];
 
-			if (!$options['model'] || !class_exists($model = $options['model'])) {
+			if (!$resource['model'] || !class_exists($model = $resource['model'])) {
 				throw new ClassNotFoundException("Could not find resource-mapped model class.");
 			}
-			$query  = $options['find'];
+			$query  = $resource['find'];
 			$method = $query[0];
 			unset($query[0]);
 			$result = $model::$method($query);
 
-			if (!$result && $options['required']) {
-				throw new DispatchException("Resource not found.");
+			if (!$result && $resource['required']) {
+				$message = "Resource not found for `{$resource['name']}`.";
+				throw new DispatchException($message);
 			}
 			return $result;
 		});
 	}
 
-	protected static function _defaults(array $config, $param, array $defaults) {
-		$param = is_string($param) ? array('params' => $param) : $param;
-		$param += $defaults;
+	protected static function _defaults($name, array $request, $resource, array $defaults) {
+		$resource = is_string($resource) ? array('params' => $resource) : $resource;
+		$resource += $defaults;
 
 		$required = array();
-		$param[0] = $param[0] ?: Inflector::camelize($config['controller']);
+		$resource[0] = $resource[0] ?: Inflector::camelize(Inflector::pluralize($name));
 
-		if ($param['params'] = (array) $param['params']) {
-			$required = array_combine($param['params'], $param['params']);
+		if (!$resource['params']) {
+			$resource['params'] = array_diff_key($resource, $defaults);
 		}
-		$values = array_intersect_key($config, $required);
-		$model = Libraries::locate('models', $param[0]);
+		if ($resource['params'] = $resource['params']) {
+			$required = array_combine((array) $resource['params'], (array) $resource['params']);
+			$resource['params'] = is_string($resource['params']) ? $required : $resource['params'];
+		}
+		if (!$model = Libraries::locate('models', $resource[0])) {
+			$message = "Could not find resource-mapped model class `{$resource[0]}`";
+			throw new ClassNotFoundException($message);
+		}
+		$conditions = array_intersect_key($request, $required);
+		ksort($resource['params']);
+		ksort($conditions);
+		$conditions = array_combine(array_keys($resource['params']), $conditions);
 
-		if (isset($values['id'])) {
-			$id = $values['id'];
-			unset($values['id']);
-			$values += $model::key($id);
+		if (isset($conditions['id'])) {
+			$id = $conditions['id'];
+			unset($conditions['id']);
+			$conditions += $model::key($id);
 		}
-		if (count($required) !== count($values) || array_filter($values) != $values) {
-			if ($param['required']) {
-				throw new DispatchException("Resource not found."); // Maybe Bad Request?
+		if (count($required) !== count($conditions) || array_filter($conditions) != $conditions) {
+			if ($resource['required']) {
+				// Maybe Bad Request?
+				$diff = join(', ', array_diff_key($required, $conditions));
+				$message = "Mapped resource parameter `{$diff}` not found for resource `{$name}`.";
+				throw new DispatchException($message);
 			}
-			$values = array();
+			$conditions = array();
 		}
-		return array($model, $param, $required, $values);
+		return array($model, $resource, $conditions);
 	}
 }
 
