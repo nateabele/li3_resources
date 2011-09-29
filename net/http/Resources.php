@@ -184,9 +184,12 @@ class Resources extends \lithium\core\StaticObject {
 			throw new ClassNotFoundException($message);
 		}
 		$conditions = array_intersect_key($request, $required);
-		ksort($resource['params']);
-		ksort($conditions);
-		$conditions = array_combine(array_keys($resource['params']), $conditions);
+
+		if ($conditions && $resource['params']) {
+			ksort($resource['params']);
+			ksort($conditions);
+			$conditions = array_combine(array_keys($resource['params']), $conditions);
+		}
 
 		if (isset($conditions['id'])) {
 			$id = $conditions['id'];
