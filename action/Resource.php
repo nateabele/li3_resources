@@ -83,7 +83,7 @@ abstract class Resource extends \lithium\core\Object {
 		if ($this->_binding) {
 			return $this->_binding;
 		}
-		return ($this->_binding = Libraries::locate('model', $this->_name()));
+		return ($this->_binding = Libraries::locate('models', $this->_name()));
 	}
 
 	/**
@@ -97,8 +97,9 @@ abstract class Resource extends \lithium\core\Object {
 
 	protected function _method($request, $params) {
 		$name = $this->_name();
+		$badIndex = ($request->method != 'GET' && $params['action'] == 'index');
 
-		if ($action = $params['action']) {
+		if (($action = $params['action']) && !$badIndex) {
 			$methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
 
 			if (!in_array($action, $methods) || strpos($action, '_') === 0) {
@@ -112,11 +113,12 @@ abstract class Resource extends \lithium\core\Object {
 			$message = "The `{$name}` resource does not handle `{$request->method}` requests.";
 			throw new MethodNotAllowedException($message);
 		}
+		$requestParams = array_filter($request->params, function($val) { return $val !== null; });
 
 		foreach ($this->_methods[$request->method] as $action => $params) {
 			$params = (array) $params;
 
-			if (array_intersect($params, array_keys($request->params)) !== $params) {
+			if (array_intersect($params, array_keys($requestParams)) !== $params) {
 				continue;
 			}
 			return $action;
@@ -210,7 +212,6 @@ abstract class Resource extends \lithium\core\Object {
 
 			$resources = $this->_get($method, $request);
 			$keys = array_map($keyMap, $resources);
-			print_r($resources);die("!!");
 
 			$before = array_combine($keys, array_map($stateMap, $resources));
 			$result = call_user_func_array($invoke, array_merge(array($request), $resources));
@@ -229,7 +230,7 @@ abstract class Resource extends \lithium\core\Object {
 	}
 
 	/**
-	 * Gets the entity(ies) for the given resource method.
+	 * Gets the bound parameters for the given resource method.
 	 *
 	 * @param string $method The name of the method to be invoked on this resource.
 	 * @return array
@@ -237,7 +238,8 @@ abstract class Resource extends \lithium\core\Object {
 	protected function _get($method, $request) {
 		$resources = $this->_classes['resources'];
 		$defs = $this->_parameters + array($method => null);
-		return $resources::all($defs[$method] ?: $this->_default(), $this->_config(), $request);
+		$list = $defs[$method] ?: $this->_default($method);
+		return $resources::all($list, $this->_config(), $request);
 	}
 
 	/**
@@ -252,9 +254,12 @@ abstract class Resource extends \lithium\core\Object {
 	protected function _default($method) {
 		$name = lcfirst($this->_name());
 		$isPlural = ($method == 'index');
-		$call = array(true => 'first', $isPlural => 'index', $method == 'add' => 'create');
+		$call = array(true => 'first', $isPlural => 'all', ($method == 'add') => 'create');
 		$key = $isPlural ? Inflector::pluralize($name) : Inflector::singularize($name);
-		return array($key => array($this->_binding(), 'call' => $call[true]));
+
+		return array($key => array(
+			$this->_binding(), 'call' => $call[true], 'required' => !$isPlural
+		));
 	}
 
 	protected function _config() {

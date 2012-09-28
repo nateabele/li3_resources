@@ -20,6 +20,7 @@ use li3_resources\action\UnmappedResourceException;
 class Resources extends \lithium\core\StaticObject {
 
 	protected static $_classes = array(
+		'router' => 'lithium\net\http\Router',
 		'route' => 'lithium\net\http\Route',
 		'model' => 'lithium\data\Model'
 	);
@@ -128,8 +129,6 @@ class Resources extends \lithium\core\StaticObject {
 				$resource += compact('name') + $defaults;
 				$resource['binding'] = $resource[0];
 				unset($resource[0]);
-				print_r($resource);
-				die();
 
 				if ($resource['in'] && !array_key_exists($resource['in'], $data)) {
 					list($key) = explode('.', $resource['in']);
@@ -140,8 +139,6 @@ class Resources extends \lithium\core\StaticObject {
 					}
 					$map($key, $resources[$key]);
 				}
-				print_r(compact('resource'));
-				die();
 				$data[$name] = $self::get($request, compact('name', 'data') + $resource, $config);
 			};
 
@@ -194,8 +191,6 @@ class Resources extends \lithium\core\StaticObject {
 		return static::_filter($func, compact('request', 'options'), function($self, $params) {
 			$options = $params['options'];
 			$request = $params['request'];
-			print_r($options);
-			die();
 
 			if ($options['in']) {
 				return $self::queryCollection($options, $query);
@@ -295,7 +290,7 @@ class Resources extends \lithium\core\StaticObject {
 			$params = $request->id ? 'id' : array();
 		}
 		if (is_string($params)) {
-			$isModel = (is_object($model) || $model instanceof $classes['model']);
+			$isModel = (is_object($model) || is_a($model, $classes['model'], true));
 			$params = $isModel ? array($params => $model::key()) : array($params => $params);
 		}
 
@@ -342,6 +337,7 @@ class Resources extends \lithium\core\StaticObject {
 		$defaults = array('prefix' => null);
 		$options += $defaults;
 
+		$classes = static::$_classes;
 		$remap = array();
 		$names = array();
 
@@ -350,14 +346,17 @@ class Resources extends \lithium\core\StaticObject {
 				$resource = $config;
 				$config = array();
 			}
-			$config += array('path' => Inflector::underscore($resource));
+			$config += array('path' => ($path = Inflector::underscore($resource)));
+			$first = substr($path, 0, 1);
+
 			$remap[$resource] = $config;
-			$names[] = $config['path'];
+			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($path, 1);
 		}
 		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
 		$template .= '/{:id:(?:[0-9a-f]{24})|(?:\d+)}'; //'.{:type}';
 
 		return static::_instance('route', compact('template') + array(
+			'formatters' => $classes['router']::formatters(),
 			'params' => array('action' => null, /*'type' => null,*/ 'id' => null)
 		));
 	}

@@ -94,7 +94,8 @@ class Responder extends \lithium\core\StaticObject {
 		$config = $classes['media']::handlers($accepts);
 
 		if (!$classes['media']::type($accepts) || $config === null) {
-			throw new MediaException();
+			$message = "The application does not understand the requested content type.";
+			throw new MediaException($message);
 		}
 		if ($config === array()) {
 			$config = $classes['media']::handlers('default');
@@ -118,13 +119,16 @@ class Responder extends \lithium\core\StaticObject {
 
 		return array(
 			'location' => function($request, $response, $data, $options) use ($classes) {
-				unset($options['data'], $options['request']);
-				print_r($options);
-				print_r($data);
-				die('!!!!');
+				$url = array('id' => $data->_id) + $options['params'];
+				$location = $classes['router']::match($url, $request, array('absolute' => true));
+				$response->headers("location", $location);
 				return $response;
 			},
 			'body' => function($request, $response, $data, $options) use ($classes) {
+				// @hack: Replace this with handlers():
+				if ($data instanceof Exception) {
+					$data = Responder::_responseFromException($request, $data);
+				}
 				return $classes['media']::render($response, $data, $options + compact('request'));
 			},
 			'errorBody' => function($request, $response, $data, $options) use ($classes) {
@@ -169,7 +173,7 @@ class Responder extends \lithium\core\StaticObject {
 	 *        action.
 	 * @return object Returns a `Response` object with the encoded error information.
 	 */
-	protected static function _responseFromException($request, $e) {
+	public static function _responseFromException($request, $e) {
 		if (!$e instanceof Exception) {
 			return false;
 		}
