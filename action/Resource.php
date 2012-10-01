@@ -23,6 +23,8 @@ abstract class Resource extends \lithium\core\Object {
 
 	protected $_parameters = array();
 
+	protected $_responder;
+
 	protected $_methods = array(
 		'GET'    => array('view'   => 'id', 'index' => null),
 		'POST'   => array('edit'   => 'id', 'add'   => null),
@@ -32,7 +34,7 @@ abstract class Resource extends \lithium\core\Object {
 	);
 
 	protected $_autoConfig = array(
-		'binding', 'classes', 'methods', 'parameters', 'handleExceptions'
+		'binding', 'classes', 'methods', 'parameters', 'handleExceptions', 'responder'
 	);
 
 	protected $_classes = array();
@@ -55,6 +57,7 @@ abstract class Resource extends \lithium\core\Object {
 			'resources' => 'li3_resources\net\http\Resources',
 			'responder' => 'li3_resources\action\resource\Responder'
 		);
+		$this->_responder = $this->_responder ?: $this->_instance('responder');
 	}
 
 	/**
@@ -63,11 +66,11 @@ abstract class Resource extends \lithium\core\Object {
 	 * to return an array of variables 
 	 *
 	 * @param object $request The object containing the state inforamation for the current request.
-	 * @param object $resource The entity or colletion operated on by the current action.
-	 * @return array Returns an array of named variables to be used in the template.
+	 * @param array $resources The array of resource parameters passed to the current action.
+	 * @return closure Returns a closure which, if called, returns an associative array of view
+	 *                 data.
 	 */
 	protected function _viewData($request, array $resources) {
-		return array();
 	}
 
 	/**
@@ -139,39 +142,61 @@ abstract class Resource extends \lithium\core\Object {
 	 */
 	protected function _response($request, $result, array $resources, array $options) {
 		$classes = $this->_classes;
-		$object = $result;
-		$status = null;
 
-		if (is_array($result)) {
-			list($status, $object) = $result;
+		if (is_object($result) && $result instanceof $classes['response']) {
+			return $result;
 		}
-		$data = $object;
-		$identity = spl_object_hash($data);
-		$response = $this->_instance('response', compact('request'));
-		$options = compact('data', 'status') + $options + array('controller' => $this->_name());
+		$options = $this->_result($result, $options) + array(
+			'controller' => $this->_name(),
+			'viewData' => $this->_viewData($request, $resources),
+		);
+		return $this->_responder->handle($request, $resources, $options);
+	}
 
-		foreach (array('before', 'after') as $key) {
-			if (isset($options[$key][$identity])) {
-				$options[$key] = $options[$key][$identity];
+	/**
+	 * Normalizes resource method return values into a processable, abstract data structure that
+	 * can be converted to an HTTP response.
+	 *
+	 * @param mixed $result The return value of the resource method. Can be a boolean indicating the
+	 *              success or failure of the operation, an integer representing an HTTP status
+	 *              code (not recommended except in special cases, where there is otherwise no easy
+	 *              way to represent the response), an object to be responded with, or an array. If
+	 *              `$result` is an array, the first value should be a boolean or integer per the
+	 *              foregoing. Optionally, the second value can be the object to respond with.
+	 * @param array $options
+	 * @return array
+	 */
+	protected function _result($result, array $options = array()) {
+		$defaults = array('status' => null, 'data' => null, 'success' => null);
+		$options += $defaults;
+
+		switch (true) {
+			case (is_array($result) && isset($result[0]) && is_bool($result[0])):
+				list($options['success'], $options['data']) = $result + array(null, null);
+			break;
+			case (is_array($result) && isset($result[0]) && is_int($result[0])):
+				list($options['status'], $options['data']) = $result + array(null, null);
+			break;
+			case (is_object($result)):
+				$options['data'] = $result;
+			break;
+			case (is_int($result)):
+				$options['status'] = $result;
+			break;
+			case (is_bool($result)):
+				$options['success'] = $result;
+			break;
+		}
+		$id = is_object($options['data']) ? spl_object_hash($options['data']) : null;
+
+		foreach ($options['state'] as $i => $state) {
+			if ($id && isset($options['state'][$i][$id])) {
+				$options['state'][$i] = $options['state'][$i][$id];
+				continue;
 			}
+			$options['state'][$i] = reset($options['state'][$i]);
 		}
-
-		if (!$classes['responder']::requiresView($request)) {
-			return $classes['responder']::handle($request, $response, $options);
-		}
-		$key = lcfirst($options['controller']);
-
-		foreach ($resources as $name => $value) {
-			if (is_object($value) && spl_object_hash($value) == $identity) {
-				$key = $name;
-				break;
-			}
-		}
-		$options += array('template' => $options['method']);
-		$options['controller'] = Inflector::underscore($options['controller']);
-		$options['data'] = array($key => $options['data']) + $this->_viewData($request, $resources);
-
-		return $classes['responder']::handle($request, $response, $options);
+		return $options;
 	}
 
 	/**
@@ -200,33 +225,28 @@ abstract class Resource extends \lithium\core\Object {
 	public function __invoke($request, array $params = array()) {
 		$classes = $this->_classes;
 		$params = ($params ?: $request->params) + array('action' => null);
-		$before = $after = $resources = array();
-		$method = $params['action'];
+		$state = $data = array();
 
-		$stateMap = array($classes['responder'], 'state');
+		$stateMap = array($this->_responder, 'state');
 		$keyMap = function($obj) { return is_object($obj) ? spl_object_hash($obj) : null; };
 
 		try {
 			$method = $this->_method($request, $params);
 			$invoke = array(&$this, $method);
 
-			$resources = $this->_get($method, $request);
-			$keys = array_map($keyMap, $resources);
+			$data = $this->_get($method, $request);
+			$keys = array_map($keyMap, $data);
 
-			$before = array_combine($keys, array_map($stateMap, $resources));
-			$result = call_user_func_array($invoke, array_merge(array($request), $resources));
-			$after = array_combine($keys, array_map($stateMap, $resources));
+			$state[] = array_combine($keys, array_map($stateMap, $data));
+			$result = call_user_func_array($invoke, array_merge(array($request), $data));
+			$state[] = array_combine($keys, array_map($stateMap, $data));
 		} catch (Exception $e) {
 			if (!$this->_handleExceptions) {
 				throw $e;
 			}
 			$result = $e;
 		}
-		$result = is_scalar($result) ? array($result, reset($resources)) : $result;
-
-		return $this->_response($request, $result, $resources, compact(
-			'before', 'after', 'params', 'method'
-		));
+		return $this->_response($request, $result, $data, compact('state', 'params', 'method'));
 	}
 
 	/**
