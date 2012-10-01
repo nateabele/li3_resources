@@ -352,7 +352,7 @@ class Resources extends \lithium\core\StaticObject {
 			$remap[$resource] = $config;
 			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($path, 1);
 		}
-		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
+		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}/{:action}';
 		$template .= '/{:id:(?:[0-9a-f]{24})|(?:\d+)}'; //'.{:type}';
 
 		return static::_instance('route', compact('template') + array(

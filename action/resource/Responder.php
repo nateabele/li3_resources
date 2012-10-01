@@ -109,7 +109,7 @@ class Responder extends \lithium\core\Object {
 					}
 				}
 
-				$options += array('template' => $options['method']);
+				$options += array('template' => $options['method'], 'layout' => 'default');
 				$options['status'] = $options['status'] ?: 200;
 				$options['controller'] = Inflector::underscore($options['controller']);
 				$options['data'] = array($key => $options['data']);
@@ -123,7 +123,8 @@ class Responder extends \lithium\core\Object {
 				if (!$options['next'] || $options['location'] || !$options['requiresView']) {
 					return $options;
 				}
-				return array('location' => $url($request, $options['next'])) + $options;
+				$location = $url($request, $options['next']);
+				return compact('location') + array('status' => 302) + $options;
 			},
 			'location' => function($request, array $resources, array $options) use ($url) {
 				$validStatus = in_array($options['status'], array(201, 301, 302, 303));
@@ -170,6 +171,9 @@ class Responder extends \lithium\core\Object {
 		$data = $options['data'];
 		$options = array_diff_key($options, $defaults);
 
+		if ($config['location']) {
+			return $response;
+		}
 		return $classes['media']::render($response, $data, $options + compact('request'));
 	}
 
@@ -199,11 +203,12 @@ class Responder extends \lithium\core\Object {
 	protected function _url() {
 		$classes = $this->_classes;
 
-		return function($request, $data) use ($classes) {
-			$url = array('id' => $data->_id) + $options['params'];
-			$location = $classes['router']::match($url, $request, array('absolute' => true));
-			$response->headers("location", $location);
-			return $response;
+		// @todo: Rewrite this to map parameters from resource configuration.
+		return function($request, $url) use ($classes) {
+			if (is_object($url)) {
+				$url = isset($url->_id) ? array('id' => $url->_id) : array();
+			}
+			return $classes['router']::match($url, $request, array('absolute' => true));
 		};
 	}
 

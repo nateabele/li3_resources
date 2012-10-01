@@ -146,10 +146,13 @@ abstract class Resource extends \lithium\core\Object {
 		if (is_object($result) && $result instanceof $classes['response']) {
 			return $result;
 		}
+
 		$options = $this->_result($result, $options) + array(
 			'controller' => $this->_name(),
 			'viewData' => $this->_viewData($request, $resources),
 		);
+		$options['data'] = $options['data'] ?: reset($resources);
+
 		return $this->_responder->handle($request, $resources, $options);
 	}
 
@@ -196,7 +199,7 @@ abstract class Resource extends \lithium\core\Object {
 			}
 			$options['state'][$i] = reset($options['state'][$i]);
 		}
-		return $options;
+		return $options + (is_array($result) ? array_diff_key($result, array(0, 0)) : array());
 	}
 
 	/**
