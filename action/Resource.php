@@ -100,9 +100,8 @@ abstract class Resource extends \lithium\core\Object {
 
 	protected function _method($request, $params) {
 		$name = $this->_name();
-		$badIndex = ($request->method != 'GET' && $params['action'] == 'index');
 
-		if (($action = $params['action']) && !$badIndex) {
+		if (($action = $params['action']) && $params['action'] != 'index') {
 			$methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
 
 			if (!in_array($action, $methods) || strpos($action, '_') === 0) {
@@ -229,6 +228,7 @@ abstract class Resource extends \lithium\core\Object {
 		$classes = $this->_classes;
 		$params = ($params ?: $request->params) + array('action' => null);
 		$state = $data = array();
+		$method = null;
 
 		$stateMap = array($this->_responder, 'state');
 		$keyMap = function($obj) { return is_object($obj) ? spl_object_hash($obj) : null; };

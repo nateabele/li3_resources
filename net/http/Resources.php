@@ -126,6 +126,7 @@ class Resources extends \lithium\core\StaticObject {
 				if (isset($data[$name])) {
 					return;
 				}
+				$resource = is_string($resource) ? array('params' => $resource) : $resource;
 				$resource += compact('name') + $defaults;
 				$resource['binding'] = $resource[0];
 				unset($resource[0]);
@@ -352,7 +353,8 @@ class Resources extends \lithium\core\StaticObject {
 			$remap[$resource] = $config;
 			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($path, 1);
 		}
-		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}/{:action}';
+		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
+		$template .= '/{:action:[^0-9]+}';
 		$template .= '/{:id:(?:[0-9a-f]{24})|(?:\d+)}'; //'.{:type}';
 
 		return static::_instance('route', compact('template') + array(
