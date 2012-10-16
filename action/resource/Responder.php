@@ -169,6 +169,8 @@ class Responder extends \lithium\core\Object {
 
 		$response = $this->_instance('response', compact('request') + $config);
 		$data = $options['data'];
+
+		unset($defaults['type'], $defaults['status']);
 		$options = array_diff_key($options, $defaults);
 
 		if ($config['location']) {

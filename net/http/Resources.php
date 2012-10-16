@@ -291,7 +291,7 @@ class Resources extends \lithium\core\StaticObject {
 			$params = $request->id ? 'id' : array();
 		}
 		if (is_string($params)) {
-			$isModel = (is_object($model) || is_a($model, $classes['model'], true));
+			$isModel = (is_object($model) || in_array($classes['model'], class_parents($model)));
 			$params = $isModel ? array($params => $model::key()) : array($params => $params);
 		}
 
