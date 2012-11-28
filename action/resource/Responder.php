@@ -210,7 +210,9 @@ class Responder extends \lithium\core\Object {
 			if (is_object($url)) {
 				$url = isset($url->_id) ? array('id' => $url->_id) : array();
 			}
-			return $classes['router']::match($url, $request, array('absolute' => true));
+			return $classes['router']::match($url + array('action' => null), $request, array(
+				'absolute' => true
+			));
 		};
 	}
 
