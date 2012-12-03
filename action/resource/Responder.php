@@ -173,7 +173,7 @@ class Responder extends \lithium\core\Object {
 		unset($defaults['type'], $defaults['status']);
 		$options = array_diff_key($options, $defaults);
 
-		if ($config['location']) {
+		if ($config['location'] && $config['status'] != 201) {
 			return $response;
 		}
 		return $classes['media']::render($response, $data, $options + compact('request'));
