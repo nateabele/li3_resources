@@ -152,7 +152,7 @@ Resources::bind('lithium\action\Dispatcher');
 
 This creates the `session` resource type and defines 3 handlers: the first is the default handler used for querying session data, the second passes a `Request` object into `Auth::check()` in order to create the session, and the third clears the session data.
 
-Now, sending `POST` request to `/session` with correct login credentials will produce a `201 Created` HTTP response, and return the session data (as a JSON structure, assuming the request was sent with `Accept: application/json`).
+Now, sending a `POST` request to `/session` with correct login credentials will produce a `201 Created` HTTP response, and return the session data (as a JSON structure, assuming the request was sent with `Accept: application/json`).
 
 Subsequent `GET` requests to `/session` will return the session data, and `DELETE /session` will clear the session, logging the current user out.
 
