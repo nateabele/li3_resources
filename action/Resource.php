@@ -19,8 +19,6 @@ use lithium\core\Libraries;
  */
 abstract class Resource extends \lithium\core\Object {
 
-	protected $_binding;
-
 	protected $_parameters = array();
 
 	protected $_responder;
@@ -34,7 +32,7 @@ abstract class Resource extends \lithium\core\Object {
 	);
 
 	protected $_autoConfig = array(
-		'binding', 'classes', 'methods', 'parameters', 'handleExceptions', 'responder'
+		'classes', 'methods', 'parameters', 'handleExceptions', 'responder'
 	);
 
 	protected $_classes = array();
@@ -82,11 +80,8 @@ abstract class Resource extends \lithium\core\Object {
 	 *         class is bound. Unless otherwise specified, all queries performed by this resource
 	 *         will be executed against the model given.
 	 */
-	protected function _binding() {
-		if ($this->_binding) {
-			return $this->_binding;
-		}
-		return ($this->_binding = Libraries::locate('models', $this->_name()));
+	public static function binding() {
+		return Libraries::locate('models', static::name());
 	}
 
 	/**
@@ -94,12 +89,12 @@ abstract class Resource extends \lithium\core\Object {
 	 *
 	 * @return string Returns the class name of the resource, without the namespace name.
 	 */
-	protected function _name() {
-		return basename(str_replace('\\', '/', get_class($this)));
+	public static function name() {
+		return basename(str_replace('\\', '/', get_called_class()));
 	}
 
 	protected function _method($request, $params) {
-		$name = $this->_name();
+		$name = static::name();
 
 		if (($action = $params['action']) && $params['action'] != 'index') {
 			$methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
@@ -147,8 +142,9 @@ abstract class Resource extends \lithium\core\Object {
 		}
 
 		$options = $this->_result($result, $options) + array(
-			'controller' => $this->_name(),
+			'controller' => static::name(),
 			'viewData' => $this->_viewData($request, $resources),
+			'export' => $this->_export($request)
 		);
 		$options['data'] = $options['data'] ?: reset($resources);
 
@@ -171,23 +167,24 @@ abstract class Resource extends \lithium\core\Object {
 	protected function _result($result, array $options = array()) {
 		$defaults = array('status' => null, 'data' => null, 'success' => null);
 		$options += $defaults;
+		$isArray = is_array($result) && isset($result[0]);
 
-		switch (true) {
-			case (is_array($result) && isset($result[0]) && is_bool($result[0])):
-				list($options['success'], $options['data']) = $result + array(null, null);
-			break;
-			case (is_array($result) && isset($result[0]) && is_int($result[0])):
+		$assign = array(
+			is_bool($result)   => 'success',
+			is_int($result)    => 'status',
+			is_object($result) => 'data',
+			($isArray && is_int($result[0])) => function(&$options, $result) {
 				list($options['status'], $options['data']) = $result + array(null, null);
-			break;
-			case (is_object($result)):
-				$options['data'] = $result;
-			break;
-			case (is_int($result)):
-				$options['status'] = $result;
-			break;
-			case (is_bool($result)):
-				$options['success'] = $result;
-			break;
+			},
+			($isArray && is_bool($result[0])) => function(&$options, $result) {
+				list($options['success'], $options['data']) = $result + array(null, null);
+			}
+		);
+
+		if (isset($assign[true]) && is_string($assign[true])) {
+			$options[$assign[true]] = $result;
+		} elseif (isset($assign[true]) && is_callable($assign[true])) {
+			$assign[true]($options, $result);
 		}
 		$id = is_object($options['data']) ? spl_object_hash($options['data']) : null;
 
@@ -275,22 +272,25 @@ abstract class Resource extends \lithium\core\Object {
 	 *         value, and a `'call'` key, indicating the name of the class method to call.
 	 */
 	protected function _default($method) {
-		$name = lcfirst($this->_name());
+		$name = lcfirst(static::name());
 		$isPlural = ($method == 'index');
 		$call = array(true => 'first', $isPlural => 'all', ($method == 'add') => 'create');
 		$key = $isPlural ? Inflector::pluralize($name) : Inflector::singularize($name);
 
 		return array($key => array(
-			$this->_binding(), 'call' => $call[true], 'required' => !$isPlural
+			static::binding(), 'call' => $call[true], 'required' => !$isPlural
 		));
 	}
 
 	protected function _config() {
 		return array(
-			'binding'   => $this->_binding(),
+			'binding'   => static::binding(),
 			'classes'   => $this->_classes,
 			'methods'   => $this->_methods
 		);
+	}
+
+	protected function _export($request) {
 	}
 }
 

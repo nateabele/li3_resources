@@ -27,6 +27,8 @@ class Resources extends \lithium\core\StaticObject {
 
 	protected static $_handlers = array();
 
+	protected static $_exports = array();
+
 	public static function config(array $config = array()) {
 		if ($config) {
 			if (isset($config['classes'])) {
@@ -347,11 +349,17 @@ class Resources extends \lithium\core\StaticObject {
 				$resource = $config;
 				$config = array();
 			}
-			$config += array('path' => ($path = Inflector::underscore($resource)));
-			$first = substr($path, 0, 1);
+			$config += array(
+				'class' => Libraries::locate('resources', $resource),
+				'path' => Inflector::underscore($resource)
+			);
+			$config += array('binding' => $config['class']::binding());
+			$first = substr($config['path'], 0, 1);
 
 			$remap[$resource] = $config;
-			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($path, 1);
+			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($config['path'], 1);
+
+			static::$_exports[$resource] = $config;
 		}
 		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
 		$template .= '/{:action:[^0-9]+}';
@@ -361,6 +369,29 @@ class Resources extends \lithium\core\StaticObject {
 			'formatters' => $classes['router']::formatters(),
 			'params' => array('action' => null, /*'type' => null,*/ 'id' => null)
 		));
+	}
+
+	/**
+	 * @todo Resource configurations should include route parameter extraction.
+	 */
+	public static function link($request, $object) {
+		$classes = static::$_classes;
+		$binding = $object->model();
+
+		foreach (static::$_exports as $resource => $config) {
+			if ($binding !== $config['binding']) {
+				continue;
+			}
+			$params = $binding::key($object) + array(
+				'controller' => $config['path'], 'action' => null
+			);
+
+			// @hack
+			$params['id'] = $params['_id'];
+			unset($params['_id']);
+			return $classes['router']::match($params, $request);
+		}
+		// throw new RoutingException
 	}
 
 	public static function bind($class) {

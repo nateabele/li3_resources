@@ -12,8 +12,6 @@ class ResourceProxy extends \lithium\core\Object {
 
 	protected $_classes = array();
 
-	protected $_operations = array('save', 'delete');
-
 	protected $_autoConfig = array('binding', 'fields', 'classes');
 
 	protected function _init() {
@@ -26,18 +24,10 @@ class ResourceProxy extends \lithium\core\Object {
 		$classes = $this->_classes;
 
 		$this->_fields += array(
-			'_url' => function($entity) use ($classes) {
+			'$links.self' => function($entity) use ($classes) {
 				
 			}
 		);
-	}
-
-	public function __call($method, array $params) {
-		
-	}
-
-	public function success() {
-		
 	}
 }
 

@@ -3,6 +3,8 @@
 namespace li3_resources\action\resource;
 
 use Exception;
+use Countable;
+use lithium\util\Set;
 use lithium\util\Inflector;
 use lithium\net\ConfigException;
 use lithium\net\http\MediaException;
@@ -19,7 +21,8 @@ class Responder extends \lithium\core\Object {
 	protected $_classes = array(
 		'media' => 'lithium\net\http\Media',
 		'router' => 'lithium\net\http\Router',
-		'response' => 'lithium\action\Response'
+		'response' => 'lithium\action\Response',
+		'entity' => 'lithium\data\Entity'
 	);
 
 	protected $_generatedResponses = array(
@@ -156,6 +159,7 @@ class Responder extends \lithium\core\Object {
 			'type' => $request->accepts(),
 			'headers' => array(),
 			'success' => null,
+			'export' => null,
 			'requiresView' => $this->_requiresView($request)
 		);
 		$options += $defaults;
@@ -168,7 +172,8 @@ class Responder extends \lithium\core\Object {
 		$config = array_intersect_key($options, array_fill_keys($keys, true));
 
 		$response = $this->_instance('response', compact('request') + $config);
-		$data = $options['data'];
+		$doExport = ($options['export'] && !$options['requiresView']);
+		$data = $doExport ? $this->_export($options['data'], $options['export']) : $options['data'];
 
 		unset($defaults['type'], $defaults['status']);
 		$options = array_diff_key($options, $defaults);
@@ -177,6 +182,33 @@ class Responder extends \lithium\core\Object {
 			return $response;
 		}
 		return $classes['media']::render($response, $data, $options + compact('request'));
+	}
+
+	protected function _export($data, $exporter) {
+		if ($data instanceof Countable) {
+			$result = array();
+
+			foreach ($data as $key => $val) {
+				$result[] = $this->_export($val, $exporter);
+			}
+			return $result;
+		}
+		if (!$data instanceof $this->_classes['entity']) {
+			return $data;
+		}
+		$result = $exporter($data);
+		$fields = is_object($data) && method_exists($data, 'schema') ? $data->schema() : null;
+
+		foreach ($result as $key => $val) {
+			if (!is_int($key)) {
+				continue;
+			}
+			if (isset($fields[$val]) || $fields === null) {
+				unset($result[$key]);
+				$result[$val] = $data->{$val};
+			}
+		}
+		return Set::expand($result);
 	}
 
 	/**
