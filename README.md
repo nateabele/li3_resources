@@ -40,7 +40,7 @@ class Posts extends \li3_resources\action\Resource {
 	}
 
 	public function delete($request, $post) {
-		return $discountCode->delete();
+		return $post->delete();
 	}
 }
 
