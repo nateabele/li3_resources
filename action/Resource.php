@@ -238,7 +238,7 @@ abstract class Resource extends \lithium\core\Object {
 			$keys = array_map($keyMap, $data);
 
 			$state[] = array_combine($keys, array_map($stateMap, $data));
-			if(is_callable($invoke)) {
+			if (is_callable($invoke)) {
 				$result = call_user_func_array($invoke, array_merge(array($request), $data));
 			}
 			$state[] = array_combine($keys, array_map($stateMap, $data));
