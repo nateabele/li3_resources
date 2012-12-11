@@ -6,7 +6,7 @@ use Exception;
 use Countable;
 use lithium\util\Set;
 use lithium\util\Inflector;
-use lithium\net\ConfigException;
+use lithium\core\ConfigException;
 use lithium\net\http\MediaException;
 
 class Responder extends \lithium\core\Object {
@@ -170,6 +170,9 @@ class Responder extends \lithium\core\Object {
 		}
 		$keys = array('status', 'location', 'headers', 'type');
 		$config = array_intersect_key($options, array_fill_keys($keys, true));
+
+		$config += array('headers' => array());
+		$config['headers'] += array('Vary' => array('Accept', 'Accept-Encoding'));
 
 		$response = $this->_instance('response', compact('request') + $config);
 		$doExport = ($options['export'] && !$options['requiresView']);
