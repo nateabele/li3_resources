@@ -93,8 +93,9 @@ abstract class Resource extends \lithium\core\Object {
 		return basename(str_replace('\\', '/', get_called_class()));
 	}
 
-	protected function _method($request, $params) {
+	protected function _method($request, array $params = array()) {
 		$name = static::name();
+		$params += array('action' => null);
 
 		if (($action = $params['action']) && $params['action'] != 'index') {
 			$methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
