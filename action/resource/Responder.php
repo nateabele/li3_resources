@@ -170,11 +170,11 @@ class Responder extends \lithium\core\Object {
 		}
 		$keys = array('status', 'location', 'headers', 'type');
 		$config = array_intersect_key($options, array_fill_keys($keys, true));
-
-		$config += array('headers' => array());
-		$config['headers'] += array('Vary' => array('Accept', 'Accept-Encoding'));
-
 		$response = $this->_instance('response', compact('request') + $config);
+
+		if (!$response->headers('Vary')) {
+			$response->headers('Vary', array('Accept', 'Accept-Encoding'));
+		}
 		$doExport = ($options['export'] && !$options['requiresView']);
 		$data = $doExport ? $this->_export($options['data'], $options['export']) : $options['data'];
 
