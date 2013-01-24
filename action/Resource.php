@@ -200,7 +200,7 @@ abstract class Resource extends \lithium\core\Object {
 	}
 
 	/**
-	 * The main invokation point of the `Resource` class. It receives an instance of the `Request`
+	 * The main invocation point of the `Resource` class. It receives an instance of the `Request`
 	 * object representing the HTTP call (and optionally a separate array of route parameters), and
 	 * uses it to dispatch a request to the correct `Resource` instance method.
 	 *
@@ -239,7 +239,9 @@ abstract class Resource extends \lithium\core\Object {
 			$keys = array_map($keyMap, $data);
 
 			$state[] = array_combine($keys, array_map($stateMap, $data));
-			$result = call_user_func_array($invoke, array_merge(array($request), $data));
+			if (is_callable($invoke)) {
+				$result = call_user_func_array($invoke, array_merge(array($request), $data));
+			}
 			$state[] = array_combine($keys, array_map($stateMap, $data));
 		} catch (Exception $e) {
 			if (!$this->_handleExceptions) {
