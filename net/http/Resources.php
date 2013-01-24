@@ -363,7 +363,7 @@ class Resources extends \lithium\core\StaticObject {
 		}
 		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
 		$template .= '/{:action:[^0-9]+}';
-		$template .= '/{:id:(?:[0-9a-f]{24})|(?:\d+)}'; //'.{:type}';
+		$template .= '/{:id:(?:[0-9a-f]+)|(?:\d+)}'; //'.{:type}';
 
 		return static::_instance('route', compact('template') + array(
 			'formatters' => $classes['router']::formatters(),
