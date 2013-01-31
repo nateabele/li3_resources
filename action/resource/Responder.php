@@ -84,7 +84,8 @@ class Responder extends \lithium\core\Object {
 					return $options;
 				}
 				if (!isset($transitions[$options['method']])) {
-					throw new ConfigException();
+					$message = "No valid transition found for method `{$options['method']}`.";
+					throw new ConfigException($message);
 				}
 				foreach ($transitions[$options['method']] as $transition) {
 					foreach ($options['state'] as $i => $state) {
