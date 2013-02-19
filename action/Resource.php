@@ -23,13 +23,7 @@ abstract class Resource extends \lithium\core\Object {
 
 	protected $_responder;
 
-	protected $_methods = array(
-		'GET'    => array('view'   => 'id', 'index' => null),
-		'POST'   => array('edit'   => 'id', 'add'   => null),
-		'PUT'    => array('edit'   => 'id'),
-		'PATCH'  => array('edit'   => 'id'),
-		'DELETE' => array('delete' => 'id')
-	);
+	protected $_methods = array();
 
 	protected $_autoConfig = array(
 		'classes', 'methods', 'parameters', 'handleExceptions', 'responder'
@@ -49,6 +43,13 @@ abstract class Resource extends \lithium\core\Object {
 	protected function _init() {
 		parent::_init();
 
+		$this->_methods += array(
+			'GET'    => array('view'   => 'id', 'index' => null),
+			'POST'   => array('edit'   => 'id', 'add'   => null),
+			'PUT'    => array('edit'   => 'id'),
+			'PATCH'  => array('edit'   => 'id'),
+			'DELETE' => array('delete' => 'id')
+		);
 		$this->_classes += array(
 			'entity' => 'lithium\data\Entity',
 			'response' => 'lithium\action\Response',
