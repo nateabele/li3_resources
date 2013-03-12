@@ -148,7 +148,12 @@ abstract class Resource extends \lithium\core\Object {
 			'viewData' => $this->_viewData($request, $resources),
 			'export' => $this->_export($request)
 		);
-		$options['data'] = $options['data'] ?: reset($resources);
+		$results = array(
+			(boolean) $result => $result,
+			(boolean) reset($resources) => reset($resources),
+			(boolean) $options['data'] => $options['data']
+		);
+		$options['data'] = $results[true];
 
 		return $this->_responder->handle($request, $resources, $options);
 	}
@@ -191,11 +196,11 @@ abstract class Resource extends \lithium\core\Object {
 		$id = is_object($options['data']) ? spl_object_hash($options['data']) : null;
 
 		foreach ($options['state'] as $i => $state) {
-			if ($id && isset($options['state'][$i][$id])) {
-				$options['state'][$i] = $options['state'][$i][$id];
+			if ($id && isset($state[$id])) {
+				$options['state'][$i] = $state[$id];
 				continue;
 			}
-			$options['state'][$i] = reset($options['state'][$i]);
+			$options['state'][$i] = count($state) ? reset($state) : true;
 		}
 		return $options + (is_array($result) ? array_diff_key($result, array(0, 0)) : array());
 	}
@@ -238,12 +243,15 @@ abstract class Resource extends \lithium\core\Object {
 
 			$data = $this->_get($method, $request);
 			$keys = array_map($keyMap, $data);
+			$state[] = $keys ? array_combine($keys, array_map($stateMap, $data)) : array();
 
-			$state[] = array_combine($keys, array_map($stateMap, $data));
-			if (is_callable($invoke)) {
-				$result = call_user_func_array($invoke, array_merge(array($request), $data));
+			if (!is_callable($invoke)) {
+				$message = "The resource does not handle `{$method}` requests.";
+				throw new MethodNotAllowedException($message);
 			}
-			$state[] = array_combine($keys, array_map($stateMap, $data));
+
+			$result = call_user_func_array($invoke, array_merge(array($request), $data));
+			$state[] = $keys ? array_combine($keys, array_map($stateMap, $data)) : array();
 		} catch (Exception $e) {
 			if (!$this->_handleExceptions) {
 				throw $e;
@@ -262,7 +270,7 @@ abstract class Resource extends \lithium\core\Object {
 	protected function _get($method, $request) {
 		$resources = $this->_classes['resources'];
 		$defs = $this->_parameters + array($method => null);
-		$list = $defs[$method] ?: $this->_default($method);
+		$list = $defs[$method] === null ? $this->_default($method) : $defs[$method];
 		return $resources::all($list, $this->_config(), $request);
 	}
 
