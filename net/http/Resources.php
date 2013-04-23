@@ -72,7 +72,7 @@ class Resources extends \lithium\core\StaticObject {
 				'default' => array(
 					function($request, $options) {
 						$isRequired = Resources::handlers('isRequired');
-						$query = (array) $options['call'];
+						$query = ((array) $options['call']) + array('all');
 						$call = $query[0];
 						unset($query[0]);
 						return $isRequired($request, $options, $options['binding']::$call($query));
@@ -212,7 +212,7 @@ class Resources extends \lithium\core\StaticObject {
 			$func = $self::handlers($options['name']) ?: $self::handlers('default');
 
 			if (is_array($func)) {
-				$key = $options['call'][0];
+				$key = isset($options['call'][0]) ? $options['call'][0] : 'all';
 				$func = is_string($key) && isset($func[$key]) ? $func[$key] : $func[0];
 			}
 			return $func($request, $options);
