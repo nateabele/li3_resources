@@ -33,10 +33,7 @@ class Responder extends \lithium\core\Object {
 	protected $_responders = array();
 
 	protected $_statusTransitions = array(
-		'index' => array(
-			array(array(), array(), 200)
-		),
-		'view' => array(
+		array(
 			array(array(), array(), 200)
 		),
 		'add' => array(
@@ -83,11 +80,10 @@ class Responder extends \lithium\core\Object {
 				if ($options['status'] && is_int($options['status'])) {
 					return $options;
 				}
-				if (!isset($transitions[$options['method']])) {
-					$message = "No valid transition found for method `{$options['method']}`.";
-					throw new ConfigException($message);
-				}
-				foreach ($transitions[$options['method']] as $transition) {
+				$method = $options['method'];
+				$events = isset($transitions[$method]) ? $transitions[$method] : $transitions[0];
+
+				foreach ($events as $transition) {
 					foreach ($options['state'] as $i => $state) {
 						$state = (array) $state + $options;
 
@@ -197,7 +193,7 @@ class Responder extends \lithium\core\Object {
 			}
 			return $result;
 		}
-		if (!$data instanceof $this->_classes['entity']) {
+		if (!is_object($data)) {
 			return $data;
 		}
 		$result = $exporter($data);
