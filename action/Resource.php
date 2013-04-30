@@ -148,6 +148,7 @@ abstract class Resource extends \lithium\core\Object {
 			'viewData' => $this->_viewData($request, $resources),
 			'export' => $this->_export($request)
 		);
+
 		$results = array(
 			(boolean) $result => $result,
 			(boolean) reset($resources) => reset($resources),

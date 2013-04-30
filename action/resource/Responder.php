@@ -117,6 +117,10 @@ class Responder extends \lithium\core\Object {
 				if (isset($options['viewData']) && is_callable($options['viewData'])) {
 					$options['data'] += $options['viewData']();
 				}
+				if (isset($options['view']) && is_array($options['view'])) {
+					$options['data'] = $options['view'] + $options['data'];
+					unset($options['view']);
+				}
 				return $options;
 			},
 			'next' => function($request, array $resources, array $options) use ($url) {
