@@ -58,11 +58,12 @@ class Resources extends \lithium\core\StaticObject {
 				},
 				'isRequired' => function($request, $options, $result = null) {
 					$name = $options['name'];
-					$req = $options['required'];
+					$required = $options['required'];
 					$model = $options['binding'];
 					$isCountable = $result && $result instanceof Countable;
+					$isValid = ($result && !$isCountable) || ($isCountable && $result->valid());
 
-					if (($result && !$isCountable) || ($isCountable && count($result)) || !$req) {
+					if ($isValid || !$required) {
 						return $result;
 					}
 					$model = is_object($model) ? get_class($model) : $model;
