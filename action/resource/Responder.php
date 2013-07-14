@@ -160,10 +160,10 @@ class Responder extends \lithium\core\Object {
 			'type' => $request->accepts(),
 			'headers' => array(),
 			'success' => null,
-			'export' => null,
-			'requiresView' => $this->_requiresView($request)
+			'export' => null
 		);
 		$options += $defaults;
+		$options['requiresView'] = $this->_requiresView($options['type']);
 		$classes = $this->_classes;
 
 		foreach ($this->_responders as $name => $responder) {
@@ -219,15 +219,13 @@ class Responder extends \lithium\core\Object {
 	 * Determines whether the response to be generated is of a content type that requires rendering
 	 * a template.
 	 *
-	 * @param object $request A `Request` object instance.
+	 * @param string $type The type of response.
 	 * @return boolean Returns `true` if the current request renders a template, otherwise `false`.
 	 */
-	protected function _requiresView($request) {
+	protected function _requiresView($type) {
 		$classes = $this->_classes;
-		$accepts = $request->accepts();
-		$config = $classes['media']::handlers($accepts);
-
-		if (!$classes['media']::type($accepts) || $config === null) {
+		$config = $classes['media']::handlers($type);
+		if (!$classes['media']::type($type) || $config === null) {
 			$message = "The application does not understand the requested content type.";
 			throw new MediaException($message);
 		}
