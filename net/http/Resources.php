@@ -13,6 +13,7 @@ use lithium\util\Set;
 use lithium\core\Libraries;
 use lithium\util\Inflector;
 use lithium\core\ConfigException;
+use lithium\net\http\RoutingException;
 use li3_resources\action\BadRequestException;
 use li3_resources\action\ResourceNotFoundException;
 use li3_resources\action\UnmappedResourceException;
@@ -28,6 +29,8 @@ class Resources extends \lithium\core\StaticObject {
 	protected static $_handlers = array();
 
 	protected static $_exports = array();
+
+	protected static $_bindings = array();
 
 	public static function config(array $config = array()) {
 		if ($config) {
@@ -351,7 +354,7 @@ class Resources extends \lithium\core\StaticObject {
 			}
 			$config += array(
 				'class' => Libraries::locate('resources', $resource),
-				'path' => Inflector::underscore($resource)
+				'path' => str_replace('_', '-', Inflector::underscore($resource))
 			);
 			$config += array('binding' => $config['class']::binding());
 			$first = substr($config['path'], 0, 1);
@@ -360,6 +363,7 @@ class Resources extends \lithium\core\StaticObject {
 			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($config['path'], 1);
 
 			static::$_exports[$resource] = $config;
+			static::$_bindings += array($config['binding'] => $resource);
 		}
 		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
 		$template .= '/{:action:[^0-9]+}';
@@ -371,27 +375,35 @@ class Resources extends \lithium\core\StaticObject {
 		));
 	}
 
+	public static function bindingFor($class) {
+		if (!isset(static::$_bindings[$class])) {
+			return null;
+		}
+		$name = static::$_bindings[$class];
+		return compact('name') + static::$_exports[$name];
+	}
+
 	/**
 	 * @todo Resource configurations should include route parameter extraction.
 	 */
-	public static function link($request, $object) {
+	public static function link($request, $object, array $options = array()) {
 		$classes = static::$_classes;
-		$binding = $object->model();
+		$options += array('binding' => null, 'resource' => null);
+		$options['binding'] = $options['binding'] ?: $object->model();
 
 		foreach (static::$_exports as $resource => $config) {
-			if ($binding !== $config['binding']) {
+			if ($options['binding'] !== $config['binding']) {
 				continue;
 			}
-			$params = $binding::key($object) + array(
+			$params = $options['binding']::key($object) + array(
 				'controller' => $config['path'], 'action' => null
 			);
-
 			// @hack
 			$params['id'] = $params['_id'];
 			unset($params['_id']);
-			return $classes['router']::match($params, $request);
+			return $classes['router']::match($params, $request, $options);
 		}
-		// throw new RoutingException
+		throw new RoutingException();
 	}
 
 	public static function bind($class) {
