@@ -361,19 +361,19 @@ class Resources extends \lithium\core\StaticObject {
 			$first = substr($config['path'], 0, 1);
 
 			$remap[$resource] = $config;
-			$names[] = "[{$first}" . ucfirst($first) . "]" . substr($config['path'], 1);
+			$name = "[{$first}" . ucfirst($first) . "]" . substr($config['path'], 1);
 
 			static::$_exports[$resource] = $config;
 			static::$_bindings += array($config['binding'] => $resource);
-		}
-		$template  = $options['prefix'] . '/{:controller:' . join('|', $names) . '}';
-		$template .= '/{:action:[^0-9]+}';
-		$template .= '/{:id:(?:[0-9a-f]{24})|(?:\d+)}'; //'.{:type}';
 
-		return static::_instance('route', compact('template') + array(
-			'formatters' => $classes['router']::formatters(),
-			'params' => array('action' => null, /*'type' => null,*/ 'id' => null)
-		));
+			$template = join('/', array(
+				$options['prefix'],
+				'{:controller:' . $name . '}',
+				'{:action:[^0-9]+}',
+				'{:id:(?:[0-9a-f]{24})|(?:\d+)}'
+			));
+			$classes['router']::connect($template, array('action' => null));
+		}
 	}
 
 	public static function bindingFor($class) {
