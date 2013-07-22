@@ -390,18 +390,20 @@ class Resources extends \lithium\core\StaticObject {
 	public static function link($request, $object, array $options = array()) {
 		$classes = static::$_classes;
 		$options += array('binding' => null, 'resource' => null);
-		$options['binding'] = $options['binding'] ?: $object->model();
+		$binding = $options['binding'] ?: $object->model();
 
 		foreach (static::$_exports as $resource => $config) {
-			if ($options['binding'] !== $config['binding']) {
+			if ($binding !== $config['binding']) {
 				continue;
 			}
-			$params = $options['binding']::key($object) + array(
-				'controller' => $config['path'], 'action' => null
-			);
+			$params = is_array($object) && count($object) == 1 ? $object : $binding::key($object);
+			$params += array('controller' => $config['path'], 'action' => null);
+
 			// @hack
-			$params['id'] = $params['_id'];
-			unset($params['_id']);
+			if (isset($params['_id'])) {
+				$params['id'] = $params['_id'];
+				unset($params['_id']);
+			}
 			return $classes['router']::match($params, $request, $options);
 		}
 		throw new RoutingException();
