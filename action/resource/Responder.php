@@ -201,6 +201,10 @@ class Responder extends \lithium\core\Object {
 			return $data;
 		}
 		$result = $exporter($data);
+
+		if (!is_array($result) || !$result) {
+			return $data;
+		}
 		$fields = is_object($data) && method_exists($data, 'schema') ? $data->schema() : null;
 
 		foreach ($result as $key => $val) {
