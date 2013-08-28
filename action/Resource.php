@@ -82,7 +82,7 @@ abstract class Resource extends \lithium\core\Object {
 	 *         will be executed against the model given.
 	 */
 	public static function binding() {
-		return Libraries::locate('models', static::name());
+		return Libraries::locate('models', static::_name());
 	}
 
 	/**
@@ -90,12 +90,12 @@ abstract class Resource extends \lithium\core\Object {
 	 *
 	 * @return string Returns the class name of the resource, without the namespace name.
 	 */
-	public static function name() {
+	protected static function _name() {
 		return basename(str_replace('\\', '/', get_called_class()));
 	}
 
 	protected function _method($request, array $params = array()) {
-		$name = static::name();
+		$name = static::_name();
 		$params += array('action' => null);
 
 		if (($action = $params['action']) && $params['action'] != 'index') {
@@ -144,7 +144,7 @@ abstract class Resource extends \lithium\core\Object {
 		}
 
 		$options = $this->_result($result, $options) + array(
-			'controller' => static::name(),
+			'controller' => static::_name(),
 			'viewData' => $this->_viewData($request, $resources),
 			'export' => $this->_export($request)
 		);
@@ -272,7 +272,7 @@ abstract class Resource extends \lithium\core\Object {
 		$resources = $this->_classes['resources'];
 		$defs = $this->_parameters + array($method => null);
 		$list = $defs[$method] === null ? $this->_default($method) : $defs[$method];
-		return $resources::all($list, $this->_config(), $request);
+		return $resources::all($list, $this->config(), $request);
 	}
 
 	/**
@@ -285,7 +285,7 @@ abstract class Resource extends \lithium\core\Object {
 	 *         value, and a `'call'` key, indicating the name of the class method to call.
 	 */
 	protected function _default($method) {
-		$name = lcfirst(static::name());
+		$name = lcfirst(static::_name());
 		$isPlural = ($method == 'index');
 		$call = array(true => 'first', $isPlural => 'all', ($method == 'add') => 'create');
 		$key = $isPlural ? Inflector::pluralize($name) : Inflector::singularize($name);
@@ -295,11 +295,12 @@ abstract class Resource extends \lithium\core\Object {
 		));
 	}
 
-	protected function _config() {
+	public function config() {
 		return array(
-			'binding'   => static::binding(),
-			'classes'   => $this->_classes,
-			'methods'   => $this->_methods
+			'binding'    => static::binding(),
+			'classes'    => $this->_classes,
+			'methods'    => $this->_methods,
+			'parameters' => $this->_parameters
 		);
 	}
 

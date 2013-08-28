@@ -357,7 +357,7 @@ class Resources extends \lithium\core\StaticObject {
 				'class' => Libraries::locate('resources', $resource),
 				'path' => str_replace('_', '-', Inflector::underscore($resource))
 			);
-			$config += array('binding' => $config['class']::binding());
+			$config += static::_instance($config['class'])->config();
 			$first = substr($config['path'], 0, 1);
 
 			$remap[$resource] = $config;
@@ -390,15 +390,16 @@ class Resources extends \lithium\core\StaticObject {
 	public static function link($request, $object, array $options = array()) {
 		$classes = static::$_classes;
 		$options += array('binding' => null, 'resource' => null);
-		$binding = $options['binding'] ?: $object->model();
+		$binding = $options['binding'];
 
 		foreach (static::$_exports as $resource => $config) {
 			if ($binding !== $config['binding']) {
 				continue;
 			}
 			$params = is_array($object) && count($object) == 1 ? $object : $binding::key($object);
-			$params += array('controller' => $config['path'], 'action' => null);
+			$params = (array) $params + array('controller' => $config['path'], 'action' => null);
 
+			static::_linkParams($object, $config);
 			// @hack
 			if (isset($params['_id'])) {
 				$params['id'] = $params['_id'];
@@ -407,6 +408,18 @@ class Resources extends \lithium\core\StaticObject {
 			return $classes['router']::match($params, $request, $options);
 		}
 		throw new RoutingException();
+	}
+
+	protected static function _linkParams($object, $config) {
+		$params = [];
+		$paramList = $config['methods']['GET']['view'];
+
+		foreach ((array) $paramList as $to => $from) {
+			if (is_int($to)) {
+
+			}
+		}
+		// print_r($config);
 	}
 
 	public static function bind($class) {
