@@ -392,13 +392,14 @@ class Resources extends \lithium\core\StaticObject {
 		$classes = static::$_classes;
 		$options += array('binding' => null, 'resource' => null);
 		$binding = $options['binding'];
+		$formatters = $classes['router']::formatters();
 
 		foreach (static::$_exports as $resource => $config) {
 			if ($binding !== $config['binding']) {
 				continue;
 			}
 			$params = static::_linkParams($object, $binding, $config) + array(
-				'controller' => $config['path'], 'action' => null
+				'controller' => $formatters['controller']($config['path']), 'action' => null
 			);
 			return $classes['router']::match($params, $request, $options);
 		}
@@ -411,6 +412,7 @@ class Resources extends \lithium\core\StaticObject {
 
 		foreach ((array) $paramList as $to => $from) {
 			$to = is_int($to) ? $from : $to;
+			$from = $from === "id" ? $binding::key() : $from;
 
 			if (isset($object->{$from})) {
 				$params[$to] = $object->{$from};
