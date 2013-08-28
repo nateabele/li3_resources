@@ -355,7 +355,8 @@ class Resources extends \lithium\core\StaticObject {
 			}
 			$config += array(
 				'class' => Libraries::locate('resources', $resource),
-				'path' => str_replace('_', '-', Inflector::underscore($resource))
+				'path' => str_replace('_', '-', Inflector::underscore($resource)),
+				'key' => 'id:(?:[0-9a-f]{24})|(?:\d+)'
 			);
 			$config += static::_instance($config['class'])->config();
 			$first = substr($config['path'], 0, 1);
@@ -368,9 +369,9 @@ class Resources extends \lithium\core\StaticObject {
 
 			$template = join('/', array(
 				$options['prefix'],
-				'{:controller:' . $name . '}',
-				'{:action:[^0-9]+}',
-				'{:id:(?:[0-9a-f]{24})|(?:\d+)}'
+				"{:controller:{$name}}",
+				"{:action:[^0-9]+}",
+				"{:{$config['key']}}"
 			));
 			$classes['router']::connect($template, array('action' => null));
 		}
@@ -396,37 +397,33 @@ class Resources extends \lithium\core\StaticObject {
 			if ($binding !== $config['binding']) {
 				continue;
 			}
-			$params = is_array($object) && count($object) == 1 ? $object : $binding::key($object);
-			$params = (array) $params + array('controller' => $config['path'], 'action' => null);
-
-			static::_linkParams($object, $config);
-			// @hack
-			if (isset($params['_id'])) {
-				$params['id'] = $params['_id'];
-				unset($params['_id']);
-			}
+			$params = static::_linkParams($object, $binding, $config) + array(
+				'controller' => $config['path'], 'action' => null
+			);
 			return $classes['router']::match($params, $request, $options);
 		}
 		throw new RoutingException();
 	}
 
-	protected static function _linkParams($object, $config) {
+	protected static function _linkParams($object, $binding, $config) {
 		$params = [];
 		$paramList = $config['methods']['GET']['view'];
 
 		foreach ((array) $paramList as $to => $from) {
-			if (is_int($to)) {
+			$to = is_int($to) ? $from : $to;
 
+			if (isset($object->{$from})) {
+				$params[$to] = $object->{$from};
 			}
 		}
-		// print_r($config);
+		return $params;
 	}
 
 	public static function bind($class) {
 		$class::applyFilter('_callable', function($self, $params, $chain) {
 			$options = $params['options'];
 			$name = $params['params']['controller'];
-	
+
 			if ($class = Libraries::locate('resources', $name, $options)) {
 				if (strpos($class, 'Controller') === false) {
 					return Libraries::instance(null, $class, $options);
