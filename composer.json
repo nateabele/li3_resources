@@ -1,0 +1,9 @@
+{
+    "name": "nateabele/li3_resources",
+    "description": "A friendly resource definition framework for Li3.",
+    "type": "lithium-library",
+    "require": {
+        "composer/installers": "*"
+    },
+    "minimum-stability": "dev"
+}
