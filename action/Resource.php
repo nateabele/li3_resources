@@ -258,8 +258,9 @@ abstract class Resource extends \lithium\core\Object {
 				throw $e;
 			}
 			$result = $e;
+			$status = $e->getCode() ?: 500;
 		}
-		return $this->_response($request, $result, $data, compact('state', 'params', 'method'));
+		return $this->_response($request, $result, $data, compact('state', 'params', 'method', 'status'));
 	}
 
 	/**
