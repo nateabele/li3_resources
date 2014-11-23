@@ -341,7 +341,7 @@ class Resources extends \lithium\core\StaticObject {
 	}
 
 	public static function export(array $resources, array $options = array()) {
-		$defaults = array('prefix' => null);
+		$defaults = array('prefix' => null, 'key' => null);
 		$options += $defaults;
 
 		$classes = static::$_classes;
@@ -356,7 +356,11 @@ class Resources extends \lithium\core\StaticObject {
 			$config += array(
 				'class' => Libraries::locate('resources', $resource),
 				'path' => str_replace('_', '-', Inflector::underscore($resource)),
-				'key' => 'id:(?:[0-9a-f]{24})|(?:\d+)'
+				'key' => join('|', array(
+					'id:(?:[0-9a-f]{24})',
+					'(?:\d+)',
+					$options['key']
+				))
 			);
 			$config += static::_instance($config['class'])->config();
 			$first = substr($config['path'], 0, 1);
@@ -373,7 +377,7 @@ class Resources extends \lithium\core\StaticObject {
 				"{:action:[^0-9]+}",
 				"{:{$config['key']}}"
 			));
-			$classes['router']::connect($template, array('action' => null));
+			$classes['router']::connect($template, array('action' => null, 'id' => null));
 		}
 	}
 
