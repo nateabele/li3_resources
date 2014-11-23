@@ -373,7 +373,7 @@ class Resources extends \lithium\core\StaticObject {
 				"{:action:[^0-9]+}",
 				"{:{$config['key']}}"
 			));
-			$classes['router']::connect($template, array('action' => null));
+			$classes['router']::connect($template, array('action' => null, 'id' => null));
 		}
 	}
 
